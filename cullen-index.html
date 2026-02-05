@@ -319,31 +319,32 @@
                 
                 // Only try to fetch if no manual price provided
                 if (!currentPrice) {
-                    // Use a JSONP-style approach with Yahoo Finance through a reliable proxy
                     try {
-                        // This endpoint aggregates from multiple sources and has CORS enabled
-                        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=nvidia&vs_currencies=usd');
-                        const data = await response.json();
-                        if (data.nvidia && data.nvidia.usd) {
-                            // This won't work because CoinGecko doesn't have stocks
-                            throw new Error('CoinGecko does not track stocks');
-                        }
-                    } catch (e) {
-                        console.log('CoinGecko failed (expected):', e.message);
-                    }
-                    
-                    // Try using a PHP/serverless proxy approach
-                    try {
-                        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/NVDA');
+                        // Scrape directly from Yahoo Finance page using allorigins proxy
+                        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://finance.yahoo.com/quote/NVDA/');
                         const response = await fetch(proxyUrl);
-                        const proxyData = await response.json();
-                        const data = JSON.parse(proxyData.contents);
-                        if (data.chart && data.chart.result && data.chart.result[0]) {
-                            currentPrice = data.chart.result[0].meta.regularMarketPrice;
-                            console.log('Got price from Yahoo Finance via allorigins:', currentPrice);
+                        const data = await response.json();
+                        const html = data.contents;
+                        
+                        // Look for the price in the HTML - it's in a specific format
+                        // Try multiple patterns to find the price
+                        const patterns = [
+                            /"regularMarketPrice":\{"raw":([\d.]+)/,
+                            /data-symbol="NVDA" data-test="qsp-price" data-field="regularMarketPrice" data-trend="[^"]*" data-pricehint="\d+" value="([\d.]+)"/,
+                            /<fin-streamer[^>]*data-symbol="NVDA"[^>]*data-field="regularMarketPrice"[^>]*value="([\d.]+)"/,
+                            /regularMarketPrice[^}]*raw[^\d]+([\d.]+)/
+                        ];
+                        
+                        for (const pattern of patterns) {
+                            const match = html.match(pattern);
+                            if (match && match[1]) {
+                                currentPrice = parseFloat(match[1]);
+                                console.log('Scraped price from Yahoo Finance:', currentPrice);
+                                break;
+                            }
                         }
                     } catch (e) {
-                        console.log('AllOrigins proxy failed:', e.message);
+                        console.log('Scraping failed:', e.message);
                     }
                 }
                 
