@@ -63,33 +63,6 @@
     <section class="py-16 px-4">
         <div class="max-w-7xl mx-auto">
             
-            <!-- Manual Price Input (shown by default since APIs don't work reliably) -->
-            <div id="manual-input-section" class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 mb-8">
-                <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <i class="ri-refresh-line text-2xl text-green-600"></i>
-                    Update NVIDIA Price
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Get the current NVDA price from <a href="https://finance.yahoo.com/quote/NVDA" target="_blank" class="text-blue-600 underline font-semibold">Yahoo Finance</a> and enter it below:</p>
-                <div class="flex gap-3 items-center">
-                    <span class="text-gray-700 font-semibold">$</span>
-                    <input 
-                        type="number" 
-                        id="manual-price-input" 
-                        step="0.01" 
-                        placeholder="e.g., 138.52" 
-                        class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-lg font-semibold"
-                        onkeypress="if(event.key === 'Enter') { updateDashboard(parseFloat(document.getElementById('manual-price-input').value)); }"
-                    />
-                    <button 
-                        onclick="updateDashboard(parseFloat(document.getElementById('manual-price-input').value));"
-                        class="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all hover:scale-105"
-                    >
-                        <i class="ri-check-line"></i> Update
-                    </button>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">💡 Tip: Press Enter after typing the price</p>
-            </div>
-            
             <!-- Key Stats Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 
@@ -313,33 +286,79 @@
 
         async function updateDashboard(manualPrice = null) {
             try {
-                console.log('Fetching NVIDIA data...');
+                console.log('=== Starting NVDA Price Fetch ===');
+                console.log('Manual price provided:', manualPrice);
                 
                 let currentPrice = manualPrice;
                 
-                // Only try to fetch if no manual price provided
                 if (!currentPrice) {
+                    // Try API 1: Twelve Data
+                    console.log('Attempt 1: Trying Twelve Data API...');
                     try {
-                        // Use Twelve Data API - free tier with demo key, CORS enabled
-                        const response = await fetch('https://api.twelvedata.com/price?symbol=NVDA&apikey=demo');
-                        const data = await response.json();
-                        if (data.price) {
-                            currentPrice = parseFloat(data.price);
-                            console.log('Got price from Twelve Data:', currentPrice);
+                        const url1 = 'https://api.twelvedata.com/price?symbol=NVDA&apikey=demo';
+                        console.log('Fetching:', url1);
+                        const response1 = await fetch(url1);
+                        console.log('Response status:', response1.status);
+                        console.log('Response headers:', [...response1.headers.entries()]);
+                        const data1 = await response1.json();
+                        console.log('Response data:', JSON.stringify(data1));
+                        if (data1.price) {
+                            currentPrice = parseFloat(data1.price);
+                            console.log('✓ SUCCESS - Got price from Twelve Data:', currentPrice);
+                        } else {
+                            console.log('✗ FAILED - No price in response');
                         }
                     } catch (e) {
-                        console.log('Twelve Data API failed:', e.message);
+                        console.error('✗ Twelve Data error:', e.message, e.stack);
+                    }
+                    
+                    // Try API 2: FMP if first failed
+                    if (!currentPrice) {
+                        console.log('Attempt 2: Trying Financial Modeling Prep...');
+                        try {
+                            const url2 = 'https://financialmodelingprep.com/api/v3/quote-short/NVDA?apikey=demo';
+                            console.log('Fetching:', url2);
+                            const response2 = await fetch(url2);
+                            console.log('Response status:', response2.status);
+                            const data2 = await response2.json();
+                            console.log('Response data:', JSON.stringify(data2));
+                            if (data2[0] && data2[0].price) {
+                                currentPrice = parseFloat(data2[0].price);
+                                console.log('✓ SUCCESS - Got price from FMP:', currentPrice);
+                            }
+                        } catch (e) {
+                            console.error('✗ FMP error:', e.message, e.stack);
+                        }
+                    }
+                    
+                    // Try API 3: Alpha Vantage if others failed
+                    if (!currentPrice) {
+                        console.log('Attempt 3: Trying Alpha Vantage...');
+                        try {
+                            const url3 = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NVDA&apikey=demo';
+                            console.log('Fetching:', url3);
+                            const response3 = await fetch(url3);
+                            console.log('Response status:', response3.status);
+                            const data3 = await response3.json();
+                            console.log('Response data:', JSON.stringify(data3));
+                            if (data3['Global Quote'] && data3['Global Quote']['05. price']) {
+                                currentPrice = parseFloat(data3['Global Quote']['05. price']);
+                                console.log('✓ SUCCESS - Got price from Alpha Vantage:', currentPrice);
+                            }
+                        } catch (e) {
+                            console.error('✗ Alpha Vantage error:', e.message, e.stack);
+                        }
                     }
                 }
                 
-                // If still no price, show manual input instruction
                 if (!currentPrice) {
-                    console.log('No API data available - manual input required');
-                    document.getElementById('last-updated').textContent = 'Enter current price above to calculate';
-                    return; // Exit and wait for manual input
+                    console.error('=== ALL APIs FAILED ===');
+                    console.error('Could not fetch NVDA price from any source');
+                    document.getElementById('last-updated').textContent = 'API Error - Check console';
+                    return;
                 }
                 
-                console.log('Current NVDA price:', currentPrice);
+                console.log('=== Using Price:', currentPrice, '===');
                 
                 // Update current price
                 document.getElementById('current-price').textContent = formatCurrency(currentPrice);
