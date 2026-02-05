@@ -501,11 +501,6 @@
                 const price30d = await fetchHistoricalPrice(30);
                 
                 console.log('All prices fetched:', { currentPrice, bragPrice, athPrice, price1d, price7d, price30d });
-                const price1d = await fetchHistoricalPrice(1);
-                const price7d = await fetchHistoricalPrice(7);
-                const price30d = await fetchHistoricalPrice(30);
-                
-                console.log('All prices fetched:', { currentPrice, bragPrice, athPrice, price1d, price7d, price30d });
 
                 // Calculate values
                 const currentValue = BTC_AMOUNT * currentPrice;
