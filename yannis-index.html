@@ -93,12 +93,12 @@
 
                 <!-- Total Losses -->
                 <div class="border-t border-white/10 pt-8">
-                    <div class="text-center">
+                    <div class="text-center mb-8">
                         <div class="text-gray-400 text-sm uppercase tracking-wide mb-2">
-                            <span id="loss-header-days">💸 Total Losses Since Yannis Bragged</span>
+                            <span id="loss-header-days">💸 Losses Since Yannis Bragged</span>
                         </div>
                         <div id="peak-value" class="text-gray-500 text-xs mb-4">
-                            Peak value when he told us: $0.00
+                            Value when he bragged: $0.00
                         </div>
                         <div id="total-loss" class="text-5xl md:text-6xl font-bold mb-2 text-red-400">
                             -$0.00
@@ -108,6 +108,27 @@
                         </div>
                         <div class="mt-6 text-gray-400 text-lg italic" id="roast-quote">
                             "It's not a loss until you sell" - Yannis, probably
+                        </div>
+                    </div>
+                    
+                    <!-- ATH Loss Section -->
+                    <div class="border-t border-white/10 pt-8">
+                        <div class="text-center">
+                            <div class="text-gray-400 text-sm uppercase tracking-wide mb-2">
+                                📉 What Could Have Been (Loss From All-Time High)
+                            </div>
+                            <div class="text-gray-500 text-xs mb-4">
+                                If Yannis had bought at the peak in January 2025 (~$111,814)
+                            </div>
+                            <div id="ath-loss" class="text-4xl md:text-5xl font-bold mb-2 text-red-400">
+                                -$0.00
+                            </div>
+                            <div id="ath-loss-pct" class="text-xl font-semibold text-red-400">
+                                0.00%
+                            </div>
+                            <div class="mt-4 text-gray-500 text-sm italic">
+                                At least he didn't buy at the absolute top... or did he? 🤔
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -240,16 +261,28 @@
     <script>
         const BTC_AMOUNT = 0.15;
         
-        // The date Yannis bragged about his Bitcoin (February 2, 2026)
-        const BRAG_DATE = new Date('2026-02-02T12:00:00');
+        // The date Yannis bragged about his Bitcoin (yesterday - February 4, 2026)
+        const BRAG_DATE = new Date('2026-02-04T12:00:00');
         
-        let peakPrice = null;
+        // The date Bitcoin hit its all-time high (~$111k in January 2025)
+        const ATH_DATE = new Date('2025-01-20T12:00:00');
+        
+        let bragPrice = null;
+        let athPrice = null;
         let priceCache = {};
         
         // Calculate days since Yannis bragged
         function getDaysSinceBrag() {
             const now = new Date();
             const diffTime = Math.abs(now - BRAG_DATE);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+        
+        // Calculate days since ATH
+        function getDaysSinceATH() {
+            const now = new Date();
+            const diffTime = Math.abs(now - ATH_DATE);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             return diffDays;
         }
@@ -399,7 +432,9 @@
                 console.log('=== Starting dashboard update ===');
                 
                 const daysSinceBrag = getDaysSinceBrag();
+                const daysSinceATH = getDaysSinceATH();
                 console.log(`Days since Yannis bragged: ${daysSinceBrag}`);
+                console.log(`Days since ATH: ${daysSinceATH}`);
                 
                 // Fetch current price
                 const currentPrice = await fetchBitcoinPrice();
@@ -410,16 +445,28 @@
                     return;
                 }
                 
-                // Fetch peak price (from the day Yannis bragged)
-                if (!peakPrice) {
-                    console.log(`Fetching peak price from ${daysSinceBrag} days ago...`);
-                    peakPrice = await fetchHistoricalPrice(daysSinceBrag);
-                    console.log('Peak price:', peakPrice);
+                // Fetch brag price (from when Yannis bragged)
+                if (!bragPrice) {
+                    console.log(`Fetching brag price from ${daysSinceBrag} days ago...`);
+                    bragPrice = await fetchHistoricalPrice(daysSinceBrag);
+                    console.log('Brag price:', bragPrice);
                 }
                 
-                if (!peakPrice) {
-                    console.error('Failed to fetch peak price, using current as fallback');
-                    peakPrice = currentPrice * 1.05; // Assume 5% higher
+                if (!bragPrice) {
+                    console.error('Failed to fetch brag price, using current as fallback');
+                    bragPrice = currentPrice * 1.02; // Assume 2% higher
+                }
+                
+                // Fetch ATH price
+                if (!athPrice) {
+                    console.log(`Fetching ATH price from ${daysSinceATH} days ago...`);
+                    athPrice = await fetchHistoricalPrice(daysSinceATH);
+                    console.log('ATH price:', athPrice);
+                }
+                
+                if (!athPrice) {
+                    console.error('Failed to fetch ATH price, using estimate');
+                    athPrice = 111814; // Fallback to known ATH
                 }
                 
                 // Fetch other historical prices
@@ -427,37 +474,50 @@
                 const price7d = await fetchHistoricalPrice(7);
                 const price30d = await fetchHistoricalPrice(30);
                 
-                console.log('All prices fetched:', { currentPrice, peakPrice, price1d, price7d, price30d });
+                console.log('All prices fetched:', { currentPrice, bragPrice, athPrice, price1d, price7d, price30d });
 
-                // Calculate current portfolio value
+                // Calculate values
                 const currentValue = BTC_AMOUNT * currentPrice;
-                const peakValue = BTC_AMOUNT * peakPrice;
+                const bragValue = BTC_AMOUNT * bragPrice;
+                const athValue = BTC_AMOUNT * athPrice;
                 
-                console.log('Portfolio values:', { currentValue, peakValue });
+                console.log('Portfolio values:', { currentValue, bragValue, athValue });
                 
                 // Update main stats
                 document.getElementById('current-portfolio').textContent = formatCurrency(currentValue);
                 document.getElementById('btc-calculation').textContent = `0.15 BTC × ${formatCurrency(currentPrice)}`;
-                document.getElementById('peak-value').textContent = `Peak value when he told us (${daysSinceBrag} days ago): ${formatCurrency(peakValue)}`;
-                document.getElementById('brag-price').textContent = formatCurrency(peakPrice);
+                document.getElementById('peak-value').textContent = `Value when he bragged (${daysSinceBrag} day${daysSinceBrag === 1 ? '' : 's'} ago): ${formatCurrency(bragValue)}`;
+                document.getElementById('brag-price').textContent = formatCurrency(bragPrice);
                 
                 // Update the header with dynamic days
                 const lossHeader = document.getElementById('loss-header-days');
                 if (lossHeader) {
-                    lossHeader.textContent = `💸 Total Losses Since Yannis Bragged (${daysSinceBrag} Day${daysSinceBrag === 1 ? '' : 's'} Ago)`;
+                    lossHeader.textContent = `💸 Losses Since Yannis Bragged (${daysSinceBrag} Day${daysSinceBrag === 1 ? '' : 's'} Ago)`;
                 }
                 
-                // Calculate total loss
-                const totalLoss = currentValue - peakValue;
-                const totalLossPct = (totalLoss / peakValue) * 100;
+                // Calculate loss from brag date
+                const bragLoss = currentValue - bragValue;
+                const bragLossPct = (bragLoss / bragValue) * 100;
                 
-                console.log('Total loss:', { totalLoss, totalLossPct });
+                console.log('Brag loss:', { bragLoss, bragLossPct });
                 
-                const lossSign = totalLoss < 0 ? '-' : '+';
-                document.getElementById('total-loss').textContent = `${lossSign}${formatCurrency(totalLoss)}`;
-                document.getElementById('total-loss-pct').textContent = formatPercent(totalLossPct);
-                updateColorBasedOnValue('total-loss', totalLoss);
-                updateColorBasedOnValue('total-loss-pct', totalLoss);
+                const bragLossSign = bragLoss < 0 ? '-' : '+';
+                document.getElementById('total-loss').textContent = `${bragLossSign}${formatCurrency(bragLoss)}`;
+                document.getElementById('total-loss-pct').textContent = formatPercent(bragLossPct);
+                updateColorBasedOnValue('total-loss', bragLoss);
+                updateColorBasedOnValue('total-loss-pct', bragLoss);
+                
+                // Calculate loss from ATH
+                const athLoss = currentValue - athValue;
+                const athLossPct = (athLoss / athValue) * 100;
+                
+                console.log('ATH loss:', { athLoss, athLossPct });
+                
+                const athLossSign = athLoss < 0 ? '-' : '+';
+                document.getElementById('ath-loss').textContent = `${athLossSign}${formatCurrency(athLoss)}`;
+                document.getElementById('ath-loss-pct').textContent = formatPercent(athLossPct);
+                updateColorBasedOnValue('ath-loss', athLoss);
+                updateColorBasedOnValue('ath-loss-pct', athLoss);
                 
                 // Update the backstory section with dynamic days text
                 const daysAgoText = document.getElementById('days-ago-text');
