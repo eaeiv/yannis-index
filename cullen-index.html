@@ -287,73 +287,39 @@
         async function updateDashboard(manualPrice = null) {
             try {
                 console.log('=== Starting NVDA Price Fetch ===');
-                console.log('Manual price provided:', manualPrice);
                 
                 let currentPrice = manualPrice;
                 
                 if (!currentPrice) {
-                    // Try API 1: Twelve Data
-                    console.log('Attempt 1: Trying Twelve Data API...');
+                    console.log('Fetching via CORS proxy from Yahoo Finance...');
                     try {
-                        const url1 = 'https://api.twelvedata.com/price?symbol=NVDA&apikey=demo';
-                        console.log('Fetching:', url1);
-                        const response1 = await fetch(url1);
-                        console.log('Response status:', response1.status);
-                        console.log('Response headers:', [...response1.headers.entries()]);
-                        const data1 = await response1.json();
-                        console.log('Response data:', JSON.stringify(data1));
-                        if (data1.price) {
-                            currentPrice = parseFloat(data1.price);
-                            console.log('✓ SUCCESS - Got price from Twelve Data:', currentPrice);
+                        // Use allorigins to proxy Yahoo Finance API
+                        const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NVDA';
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                        console.log('Fetching:', proxyUrl);
+                        
+                        const response = await fetch(proxyUrl);
+                        console.log('Proxy response status:', response.status);
+                        
+                        const proxyData = await response.json();
+                        console.log('Proxy returned, parsing Yahoo data...');
+                        
+                        const yahooData = JSON.parse(proxyData.contents);
+                        console.log('Yahoo data parsed:', yahooData);
+                        
+                        if (yahooData.chart && yahooData.chart.result && yahooData.chart.result[0]) {
+                            currentPrice = yahooData.chart.result[0].meta.regularMarketPrice;
+                            console.log('✓ SUCCESS - Got price:', currentPrice);
                         } else {
-                            console.log('✗ FAILED - No price in response');
+                            console.log('✗ FAILED - Unexpected Yahoo response structure');
                         }
                     } catch (e) {
-                        console.error('✗ Twelve Data error:', e.message, e.stack);
-                    }
-                    
-                    // Try API 2: FMP if first failed
-                    if (!currentPrice) {
-                        console.log('Attempt 2: Trying Financial Modeling Prep...');
-                        try {
-                            const url2 = 'https://financialmodelingprep.com/api/v3/quote-short/NVDA?apikey=demo';
-                            console.log('Fetching:', url2);
-                            const response2 = await fetch(url2);
-                            console.log('Response status:', response2.status);
-                            const data2 = await response2.json();
-                            console.log('Response data:', JSON.stringify(data2));
-                            if (data2[0] && data2[0].price) {
-                                currentPrice = parseFloat(data2[0].price);
-                                console.log('✓ SUCCESS - Got price from FMP:', currentPrice);
-                            }
-                        } catch (e) {
-                            console.error('✗ FMP error:', e.message, e.stack);
-                        }
-                    }
-                    
-                    // Try API 3: Alpha Vantage if others failed
-                    if (!currentPrice) {
-                        console.log('Attempt 3: Trying Alpha Vantage...');
-                        try {
-                            const url3 = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=NVDA&apikey=demo';
-                            console.log('Fetching:', url3);
-                            const response3 = await fetch(url3);
-                            console.log('Response status:', response3.status);
-                            const data3 = await response3.json();
-                            console.log('Response data:', JSON.stringify(data3));
-                            if (data3['Global Quote'] && data3['Global Quote']['05. price']) {
-                                currentPrice = parseFloat(data3['Global Quote']['05. price']);
-                                console.log('✓ SUCCESS - Got price from Alpha Vantage:', currentPrice);
-                            }
-                        } catch (e) {
-                            console.error('✗ Alpha Vantage error:', e.message, e.stack);
-                        }
+                        console.error('✗ Error:', e.message, e.stack);
                     }
                 }
                 
                 if (!currentPrice) {
-                    console.error('=== ALL APIs FAILED ===');
-                    console.error('Could not fetch NVDA price from any source');
+                    console.error('=== FAILED TO GET PRICE ===');
                     document.getElementById('last-updated').textContent = 'API Error - Check console';
                     return;
                 }
