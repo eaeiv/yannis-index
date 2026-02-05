@@ -457,16 +457,11 @@
                     bragPrice = currentPrice * 1.02; // Assume 2% higher
                 }
                 
-                // Fetch ATH price
+                // Set ATH price (hardcoded since we know the ATH was ~$111,814)
                 if (!athPrice) {
-                    console.log(`Fetching ATH price from ${daysSinceATH} days ago...`);
-                    athPrice = await fetchHistoricalPrice(daysSinceATH);
+                    console.log('Setting ATH price to known value...');
+                    athPrice = 111814; // Bitcoin ATH in January 2025
                     console.log('ATH price:', athPrice);
-                }
-                
-                if (!athPrice) {
-                    console.error('Failed to fetch ATH price, using estimate');
-                    athPrice = 111814; // Fallback to known ATH
                 }
                 
                 // Fetch other historical prices
@@ -481,6 +476,10 @@
                 const bragValue = BTC_AMOUNT * bragPrice;
                 const athValue = BTC_AMOUNT * athPrice;
                 
+                console.log('=== CALCULATION BREAKDOWN ===');
+                console.log('Current:', { price: currentPrice, value: currentValue });
+                console.log('Brag:', { price: bragPrice, value: bragValue });
+                console.log('ATH:', { price: athPrice, value: athValue });
                 console.log('Portfolio values:', { currentValue, bragValue, athValue });
                 
                 // Update main stats
@@ -511,6 +510,10 @@
                 const athLoss = currentValue - athValue;
                 const athLossPct = (athLoss / athValue) * 100;
                 
+                console.log('=== ATH LOSS CALCULATION ===');
+                console.log(`Current Value: $${currentValue.toFixed(2)}`);
+                console.log(`ATH Value: $${athValue.toFixed(2)}`);
+                console.log(`ATH Loss: $${athLoss.toFixed(2)} (${athLossPct.toFixed(2)}%)`);
                 console.log('ATH loss:', { athLoss, athLossPct });
                 
                 const athLossSign = athLoss < 0 ? '-' : '+';
