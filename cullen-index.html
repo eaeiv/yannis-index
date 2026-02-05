@@ -293,15 +293,18 @@
                 if (!currentPrice) {
                     console.log('Fetching via CORS proxy from Yahoo Finance...');
                     try {
-                        // Use corsproxy.io - more reliable than allorigins
+                        // Use allorigins to proxy Yahoo Finance API
                         const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NVDA?range=1y&interval=1d';
-                        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
                         console.log('Fetching:', proxyUrl);
                         
                         const response = await fetch(proxyUrl);
                         console.log('Proxy response status:', response.status);
                         
-                        const yahooData = await response.json();
+                        const proxyData = await response.json();
+                        console.log('Proxy returned, parsing Yahoo data...');
+                        
+                        const yahooData = JSON.parse(proxyData.contents);
                         console.log('Yahoo data parsed');
                         
                         if (yahooData.chart && yahooData.chart.result && yahooData.chart.result[0]) {
