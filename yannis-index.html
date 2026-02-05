@@ -267,9 +267,50 @@
         // The date Bitcoin hit its all-time high (~$111k in January 2025)
         const ATH_DATE = new Date('2025-01-20T12:00:00');
         
+        // Hardcoded prices that NEVER change
+        const ATH_PRICE = 111814; // Bitcoin ATH in January 2025
+        
+        // OPTIONAL: Manually set the brag price here if you know it
+        // Set to null to auto-fetch and cache, or set a number to lock it in
+        const MANUAL_BRAG_PRICE = null; // e.g., 62134 if you know the exact price when he bragged
+        
         let bragPrice = null;
-        let athPrice = null;
+        let athPrice = ATH_PRICE;
         let priceCache = {};
+        
+        // Get brag price from localStorage or fetch it once
+        async function getBragPrice() {
+            // If manual price is set, use that and cache it
+            if (MANUAL_BRAG_PRICE !== null) {
+                console.log('Using manual brag price:', MANUAL_BRAG_PRICE);
+                localStorage.setItem('yannis_brag_price', MANUAL_BRAG_PRICE.toString());
+                return MANUAL_BRAG_PRICE;
+            }
+            
+            // Check if we already have it cached in localStorage
+            const cachedBragPrice = localStorage.getItem('yannis_brag_price');
+            if (cachedBragPrice) {
+                console.log('Using cached brag price from localStorage:', cachedBragPrice);
+                return parseFloat(cachedBragPrice);
+            }
+            
+            // If not cached, fetch it once and save it forever
+            console.log('Fetching brag price for the first time...');
+            const daysSinceBrag = getDaysSinceBrag();
+            const price = await fetchHistoricalPrice(daysSinceBrag);
+            
+            if (price) {
+                console.log('Caching brag price permanently:', price);
+                localStorage.setItem('yannis_brag_price', price.toString());
+                return price;
+            }
+            
+            // Fallback if fetch fails
+            console.error('Failed to fetch brag price, using fallback');
+            const fallbackPrice = 67000; // Reasonable fallback for Feb 4, 2026
+            localStorage.setItem('yannis_brag_price', fallbackPrice.toString());
+            return fallbackPrice;
+        }
         
         // Calculate days since Yannis bragged
         function getDaysSinceBrag() {
@@ -445,26 +486,21 @@
                     return;
                 }
                 
-                // Fetch brag price (from when Yannis bragged)
+                // Get brag price (cached permanently after first fetch)
                 if (!bragPrice) {
-                    console.log(`Fetching brag price from ${daysSinceBrag} days ago...`);
-                    bragPrice = await fetchHistoricalPrice(daysSinceBrag);
-                    console.log('Brag price:', bragPrice);
+                    bragPrice = await getBragPrice();
+                    console.log('Brag price (locked):', bragPrice);
                 }
                 
-                if (!bragPrice) {
-                    console.error('Failed to fetch brag price, using current as fallback');
-                    bragPrice = currentPrice * 1.02; // Assume 2% higher
-                }
+                // ATH price is hardcoded
+                console.log('ATH price (hardcoded):', athPrice);
                 
-                // Set ATH price (hardcoded since we know the ATH was ~$111,814)
-                if (!athPrice) {
-                    console.log('Setting ATH price to known value...');
-                    athPrice = 111814; // Bitcoin ATH in January 2025
-                    console.log('ATH price:', athPrice);
-                }
+                // Fetch other historical prices for comparison metrics
+                const price1d = await fetchHistoricalPrice(1);
+                const price7d = await fetchHistoricalPrice(7);
+                const price30d = await fetchHistoricalPrice(30);
                 
-                // Fetch other historical prices
+                console.log('All prices fetched:', { currentPrice, bragPrice, athPrice, price1d, price7d, price30d });
                 const price1d = await fetchHistoricalPrice(1);
                 const price7d = await fetchHistoricalPrice(7);
                 const price30d = await fetchHistoricalPrice(30);
