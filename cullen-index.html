@@ -137,8 +137,8 @@
                     </h3>
                     <div class="space-y-3">
                         <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                            <span class="text-sm text-gray-600">Price at Brag:</span>
-                            <span class="font-bold text-gray-900" id="brag-price">$138.52</span>
+                            <span class="text-sm text-gray-600">Price at Brag (HIGH):</span>
+                            <span class="font-bold text-gray-900" id="brag-price">$0.00</span>
                         </div>
                         <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                             <span class="text-sm text-gray-600">Value at Brag:</span>
@@ -245,10 +245,10 @@
 
     <script>
         const SHARES = 280;
-        const ATH_PRICE = 212.19;
+        const ATH_PRICE = 212.19; // Intraday high Oct 29, 2025
         const ATH_DATE = new Date('2025-10-29');
         const BRAG_DATE = new Date('2025-02-05');
-        const BRAG_PRICE = 138.52;
+        let BRAG_PRICE = 139.40; // High of day Feb 5, 2025 (will fetch actual)
 
         function formatCurrency(value) {
             return new Intl.NumberFormat('en-US', {
@@ -293,8 +293,8 @@
                 if (!currentPrice) {
                     console.log('Fetching via CORS proxy from Yahoo Finance...');
                     try {
-                        // Use allorigins to proxy Yahoo Finance API
-                        const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NVDA';
+                        // Use allorigins to proxy Yahoo Finance API - get 1 year for historical brag data
+                        const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/NVDA?range=1y&interval=1d';
                         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
                         console.log('Fetching:', proxyUrl);
                         
@@ -305,11 +305,28 @@
                         console.log('Proxy returned, parsing Yahoo data...');
                         
                         const yahooData = JSON.parse(proxyData.contents);
-                        console.log('Yahoo data parsed:', yahooData);
+                        console.log('Yahoo data parsed');
                         
                         if (yahooData.chart && yahooData.chart.result && yahooData.chart.result[0]) {
-                            currentPrice = yahooData.chart.result[0].meta.regularMarketPrice;
-                            console.log('✓ SUCCESS - Got price:', currentPrice);
+                            const result = yahooData.chart.result[0];
+                            const meta = result.meta;
+                            
+                            // Use HIGH OF DAY for maximum pessimism
+                            currentPrice = meta.regularMarketDayHigh || meta.regularMarketPrice;
+                            console.log('✓ Current price (HIGH OF DAY):', currentPrice);
+                            
+                            // Find Feb 5, 2025 HIGH in historical data  
+                            const timestamps = result.timestamp;
+                            const highs = result.indicators.quote[0].high;
+                            
+                            for (let i = 0; i < timestamps.length; i++) {
+                                const date = new Date(timestamps[i] * 1000);
+                                if (date.toDateString() === BRAG_DATE.toDateString() && highs[i]) {
+                                    BRAG_PRICE = highs[i];
+                                    console.log('✓ Brag day HIGH (Feb 5, 2025):', BRAG_PRICE);
+                                    break;
+                                }
+                            }
                         } else {
                             console.log('✗ FAILED - Unexpected Yahoo response structure');
                         }
@@ -357,6 +374,7 @@
                 const lossSinceBragPct = ((currentPrice - BRAG_PRICE) / BRAG_PRICE) * 100;
                 
                 const sign = lossSinceBrag < 0 ? '-' : '+';
+                document.getElementById('brag-price').textContent = formatCurrency(BRAG_PRICE);
                 document.getElementById('brag-value').textContent = formatCurrency(bragValue);
                 document.getElementById('loss-since-brag').textContent = sign + formatCurrency(Math.abs(lossSinceBrag));
                 document.getElementById('loss-since-brag-pct').textContent = (lossSinceBrag < 0 ? '-' : '+') + formatPercent(Math.abs(lossSinceBragPct));
